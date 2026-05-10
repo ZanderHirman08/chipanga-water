@@ -1,0 +1,35 @@
+# macOS
+.DS_Store
+._*
+
+# Excel / LibreOffice lock + temp files
+~$*.xlsx
+~$*.xls
+.~lock.*
+
+# QGIS auto-backups
+*.qgs~
+*.qgz~
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+venv/
+.venv/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS junk
+Thumbs.db
+
+# Local backups (auto-generated, don't need version control)
+master/backups/
+
+# QGIS local user settings (project files OK to commit)
+*.qgs.cfg

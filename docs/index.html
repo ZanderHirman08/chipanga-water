@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chipanga Water + Gardens — Project Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --panel: #ffffff;
+    --ink: #1a2332;
+    --muted: #6c757d;
+    --accent: #1f4e78;
+    --accent-soft: #d9e1f2;
+    --good: #2e8b57;
+    --warn: #c97c00;
+    --placeholder: #b39ddb;
+  }
+  html, body { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; color: var(--ink); }
+  #app { display: flex; height: 100vh; }
+  #map { flex: 1; background: #cdd5dc; }
+  #sidebar {
+    width: 360px; background: var(--panel); border-left: 1px solid #e1e4e8;
+    overflow-y: auto; padding: 0; box-shadow: -2px 0 8px rgba(0,0,0,0.04);
+  }
+  .header { background: var(--accent); color: white; padding: 16px 20px; }
+  .header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  .header .sub { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+  .section { padding: 14px 20px; border-bottom: 1px solid #eef0f2; }
+  .section h2 { margin: 0 0 10px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 600; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--accent-soft); padding: 10px 12px; border-radius: 6px; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3px; }
+  .stat .value { font-size: 20px; font-weight: 600; color: var(--accent); margin-top: 2px; line-height: 1.1; }
+  .stat .unit { font-size: 11px; color: var(--muted); margin-left: 2px; }
+  .layer-row { display: flex; align-items: center; padding: 6px 0; cursor: pointer; user-select: none; }
+  .layer-row:hover { background: #f0f4f8; }
+  .layer-row input { margin-right: 10px; }
+  .layer-swatch { width: 14px; height: 14px; border-radius: 3px; margin-right: 8px; border: 1px solid rgba(0,0,0,0.1); }
+  .layer-row .name { flex: 1; font-size: 13px; }
+  .layer-row .count { font-size: 11px; color: var(--muted); }
+  .pill { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px; background: var(--placeholder); color: white; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
+  .banner { background: #fff3cd; color: #664d03; padding: 8px 12px; font-size: 12px; border-bottom: 1px solid #ffec99; }
+  .legend-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .leaflet-popup-content { font-family: inherit; font-size: 13px; }
+  .leaflet-popup-content h3 { margin: 0 0 4px 0; font-size: 14px; }
+  .leaflet-popup-content table { border-collapse: collapse; margin-top: 4px; font-size: 12px; }
+  .leaflet-popup-content td { padding: 1px 6px 1px 0; vertical-align: top; }
+  .leaflet-popup-content td:first-child { color: var(--muted); white-space: nowrap; }
+  @media (max-width: 720px) {
+    #app { flex-direction: column; }
+    #sidebar { width: 100%; height: 50vh; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <aside id="sidebar">
+    <div class="header">
+      <h1>Chipanga Water + Gardens</h1>
+      <div class="sub">Bahi District, Dodoma Region · Tanzania</div>
+    </div>
+    <div id="placeholder-banner" class="banner" style="display:none">
+      Some layers below show <strong>placeholder data</strong> (dashed lines, lighter colors). They'll be replaced with real measurements when Charlie's QField data syncs.
+    </div>
+    <div class="section">
+      <h2>Project at a glance</h2>
+      <div class="stat-grid">
+        <div class="stat"><div class="label">Annual water</div><div class="value">10M<span class="unit"> L</span></div></div>
+        <div class="stat"><div class="label">Daily supply</div><div class="value">27,300<span class="unit"> L</span></div></div>
+        <div class="stat"><div class="label">Productive area</div><div class="value">6,070<span class="unit"> m²</span></div></div>
+        <div class="stat"><div class="label">Storage</div><div class="value">24,000<span class="unit"> L</span></div></div>
+        <div class="stat"><div class="label">Food output</div><div class="value">~60<span class="unit"> tons/yr</span></div></div>
+        <div class="stat"><div class="label">People fed</div><div class="value">~410<span class="unit"> /yr</span></div></div>
+      </div>
+      <div class="legend-note">From the calc model. Edit the spreadsheet → re-publish to update.</div>
+    </div>
+    <div class="section">
+      <h2>Layers</h2>
+      <div id="layer-list"></div>
+    </div>
+    <div class="section">
+      <h2>Funding</h2>
+      <div style="font-size: 13px; line-height: 1.5;">
+        ~$7,000 raised through Rotary clubs (community + international level, including Longmont Rotary grant). Project supports ~13,440 ward residents through a school + women's-cooperative garden system.
+      </div>
+    </div>
+    <div class="section" style="font-size: 11px; color: var(--muted);">
+      Last data sync: <span id="last-sync">checking…</span><br>
+      Hosted via GitHub Pages · Built for Charlie's Peace Corps service
+    </div>
+  </aside>
+</div>
+
+<!-- All GeoJSON data inlined so this file works when opened via file:// -->
+<script type="application/json" id="layer-data">{"school_buildings":{"type":"FeatureCollection","name":"school_buildings","_is_placeholder_layer":false,"features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.34551170835675,-6.236993012135529],[35.345619839547936,-6.237025221426519],[35.3456014342388,-6.237074685694826],[35.3454979043749,-6.237042476403836],[35.34551170835675,-6.236993012135529]]]},"properties":{"fid":1,"building_id":"BLD_001","building_name":"School Building 1","building_use":null,"roof_type":null,"condition":null,"num_rooms":null,"photo_path":null,"notes":null,"_is_placeholder":false}},{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.34576938268468,-6.237121849299491],[35.34586370989401,-6.237148306931377],[35.34587751387586,-6.237105744653996],[35.34578203633471,-6.237076986358469],[35.34576938268468,-6.237121849299491]]]},"properties":{"fid":2,"building_id":"BLD_002","building_name":"School Building 2","building_use":null,"roof_type":null,"condition":null,"num_rooms":null,"photo_path":null,"notes":null,"_is_placeholder":false}},{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.34553931632046,-6.237287497081729],[35.34555887196142,-6.237213875845179],[35.34571876808455,-6.237265640777128],[35.345702663439056,-6.237335811018215],[35.34553931632046,-6.237287497081729]]]},"properties":{"fid":3,"building_id":"BLD_003","building_name":"School Building 3","building_use":null,"roof_type":null,"condition":null,"num_rooms":null,"photo_path":null,"notes":null,"_is_placeholder":false}},{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.345663014095514,-6.237617477440185],[35.345731120009965,-6.23763818531958],[35.3458213143291,-6.237355177634523],[35.34575688981543,-6.2373326290547375],[35.345663014095514,-6.237617477440185]]]},"properties":{"fid":4,"building_id":"BLD_005","building_name":"School Building 5","building_use":null,"roof_type":null,"condition":null,"num_rooms":null,"photo_path":null,"notes":null,"_is_placeholder":false}},{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.34538705487965,-6.237451457640621],[35.34545404563477,-6.2374695632501105],[35.345516811747665,-6.237261952261293],[35.3454480104316,-6.23724445017212],[35.3454480104316,-6.23724445017212],[35.34538705487965,-6.237451457640621]]]},"properties":{"fid":5,"building_id":"BLD_004","building_name":"School Building 4","building_use":null,"roof_type":null,"condition":null,"num_rooms":null,"photo_path":null,"notes":null,"_is_placeholder":false}},{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.34535138480959,-6.237817702424791],[35.345267828999795,-6.237790469420116],[35.345355717333064,-6.237476670934425],[35.345449176053656,-6.237496476756007],[35.345449176053656,-6.237496476756007],[35.34535138480959,-6.237817702424791]]]},"properties":{"fid":6,"building_id":"BLD_006","building_name":"School Building 6","building_use":null,"roof_type":null,"condition":null,"num_rooms":null,"photo_path":null,"notes":null,"_is_placeholder":false}}]},"garden_plots":{"type":"FeatureCollection","name":"garden_plots","_is_placeholder_layer":true,"features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.34622758993236,-6.236431975932344],[35.34640150382721,-6.235973190242042],[35.34592560021669,-6.23577537466851],[35.34573402283533,-6.236234645468347],[35.34622758993236,-6.236431975932344]]]},"properties":{"fid":1,"plot_id":"DRAFT_PLT_001","plot_number":12,"owner":"School","group_name":"School","use_type":"vegetable production","area_m2":3035.0,"crops":"leafy greens, tomato, okra","irrigation_method":"drip (planned)","photo_path":null,"notes":"School Garden - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}},{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.34646732458567,-6.235853584876854],[35.34665362489577,-6.235395551183665],[35.34619486744341,-6.235202874842998],[35.34599192937466,-6.235660961468199],[35.34646732458567,-6.235853584876854]]]},"properties":{"fid":2,"plot_id":"DRAFT_PLT_002","plot_number":1,"owner":"Women's cooperative (boundary)","group_name":"Women's group","use_type":"vegetable production","area_m2":3035.0,"crops":"leafy greens, tomato, okra","irrigation_method":"drip (planned)","photo_path":null,"notes":"womens garden - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}}]},"fence_areas":{"type":"FeatureCollection","name":"fence_areas","_is_placeholder_layer":false,"features":[]},"solar_array":{"type":"FeatureCollection","name":"solar_array","_is_placeholder_layer":true,"features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[35.34556635239956,-6.236148543568614],[35.34563589437177,-6.236183400580552],[35.34569158289389,-6.236055438934427],[35.34561816191589,-6.236023551888152],[35.34556635239956,-6.236148543568614]]]},"properties":{"fid":1,"array_id":"DRAFT_SOLAR_001","panel_count":12,"panel_watts":null,"total_watts":null,"mounting":"ground-mount","install_year":null,"photo_path":null,"notes":"Solar enclosure - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}}]},"water_towers":{"type":"FeatureCollection","name":"water_towers","_is_placeholder_layer":true,"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[35.3459220060227,-6.23571738194507]},"properties":{"fid":1,"tower_id":"DRAFT_TWR_001","serves":"gardens","tank_count":2,"tank_capacity_l":20000,"height_m":4.0,"material":"concrete+steel","install_year":null,"photo_path":null,"notes":"Water Tank Structure - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}},{"type":"Feature","geometry":{"type":"Point","coordinates":[35.34568491889486,-6.23708033075472]},"properties":{"fid":2,"tower_id":"DRAFT_TWR_002","serves":"school","tank_count":1,"tank_capacity_l":4000,"height_m":4.0,"material":"concrete+steel","install_year":null,"photo_path":null,"notes":"School Tank - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}}]},"infrastructure_points":{"type":"FeatureCollection","name":"infrastructure_points","_is_placeholder_layer":true,"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[35.34561374757572,-6.236162996196494]},"properties":{"fid":1,"feature_id":"DRAFT_INF_001","feature_type":"borehole","depth_m":180.0,"max_output_lph":5000,"diameter_in":6.0,"status":"planned","install_year":null,"photo_path":null,"notes":"Borehole - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}}]},"water_pipelines":{"type":"FeatureCollection","name":"water_pipelines","_is_placeholder_layer":true,"features":[{"type":"Feature","geometry":{"type":"LineString","coordinates":[[35.34579827772444,-6.235997981141329],[35.34606482285527,-6.235423295899444]]},"properties":{"fid":1,"pipe_id":"DRAFT_PIPE_001","pipe_type":"supply","material":"HDPE","diameter_in":null,"length_m":null,"buried":"unknown","install_year":null,"photo_path":null,"notes":"distribution line - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}},{"type":"Feature","geometry":{"type":"LineString","coordinates":[[35.34606614379931,-6.23542184840113],[35.34654817440681,-6.23562550417124]]},"properties":{"fid":2,"pipe_id":"DRAFT_PIPE_002","pipe_type":"distribution","material":"HDPE","diameter_in":null,"length_m":null,"buried":"unknown","install_year":null,"photo_path":null,"notes":"Water line womens garden - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}},{"type":"Feature","geometry":{"type":"LineString","coordinates":[[35.34580239138983,-6.235995648139089],[35.34631402615848,-6.236200801469153]]},"properties":{"fid":3,"pipe_id":"DRAFT_PIPE_003","pipe_type":"distribution","material":"HDPE","diameter_in":null,"length_m":null,"buried":"unknown","install_year":null,"photo_path":null,"notes":"School garden water line - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}},{"type":"Feature","geometry":{"type":"LineString","coordinates":[[35.3456246752772,-6.236154193622625],[35.34591149109398,-6.2357144907562]]},"properties":{"fid":4,"pipe_id":"DRAFT_PIPE_004","pipe_type":"supply","material":"HDPE","diameter_in":null,"length_m":null,"buried":"unknown","install_year":null,"photo_path":null,"notes":"Water Tank filling line - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}},{"type":"Feature","geometry":{"type":"LineString","coordinates":[[35.34561793844507,-6.236172677615225],[35.34568579746598,-6.237055904200354]]},"properties":{"fid":5,"pipe_id":"DRAFT_PIPE_005","pipe_type":"supply","material":"HDPE","diameter_in":null,"length_m":null,"buried":"unknown","install_year":null,"photo_path":null,"notes":"School distribution line - DRAFT - Google Earth estimate, replace with QField data","_is_placeholder":true}}]}}</script>
+<script type="application/json" id="layer-config">[["school_buildings", "School buildings", "#c1666b", "polygon"], ["garden_plots", "Garden plots", "#2e8b57", "polygon"], ["fence_areas", "Fence (security)", "#888888", "polygon"], ["solar_array", "Solar array", "#f1a208", "polygon"], ["water_towers", "Water towers + tanks", "#1f4e78", "point"], ["infrastructure_points", "Borehole + taps", "#0077b6", "point"], ["water_pipelines", "Water pipelines", "#0096c7", "line"]]</script>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+const LAYERS = JSON.parse(document.getElementById("layer-config").textContent)
+  .map(([key, label, color, geom]) => ({ key, label, color, geom }));
+const DATA = JSON.parse(document.getElementById("layer-data").textContent);
+
+// --- Map ---
+const map = L.map("map", { zoomControl: true, minZoom: 3, maxZoom: 20 })
+  .setView([-6.236, 35.346], 18);
+
+// --- Basemaps ---
+// Esri World Imagery — reliable, native z19. Allow upscale to z20 for one extra step.
+const satEsri = L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  { attribution: "Imagery © Esri, Maxar, Earthstar Geographics",
+     maxZoom: 20, maxNativeZoom: 19 }
+);
+// CartoDB Voyager — clean street/road context. Correct OSM-style {z}/{x}/{y} URL.
+const streets = L.tileLayer(
+  "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+  { attribution: "© OpenStreetMap contributors © CARTO",
+     subdomains: "abcd", maxZoom: 20 }
+);
+// OpenTopoMap — useful for terrain context around Chipanga.
+const terrain = L.tileLayer(
+  "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+  { attribution: "Map data © OpenStreetMap, SRTM | © OpenTopoMap (CC-BY-SA)",
+     subdomains: "abc", maxZoom: 17 }
+);
+satEsri.addTo(map);
+L.control.layers({
+  "Satellite imagery": satEsri,
+  "Street map": streets,
+  "Terrain": terrain,
+}, null, { position: "topleft", collapsed: false }).addTo(map);
+
+// --- Layers ---
+const layerGroups = {};
+const featureCounts = {};
+let anyPlaceholder = false;
+
+function makeStyle(cfg, isPlaceholder) {
+  return {
+    color: cfg.color,
+    weight: cfg.geom === "line" ? 3 : 2,
+    fillColor: cfg.color,
+    fillOpacity: cfg.geom === "polygon" ? (cfg.key === "fence_areas" ? 0.05 : 0.30) : 0,
+    opacity: 0.95,
+    dashArray: isPlaceholder ? "6,4" : null,
+  };
+}
+
+function popupHtml(layerLabel, props) {
+  const skip = new Set(["fid", "_is_placeholder", "photo_path"]);
+  const rows = Object.entries(props)
+    .filter(([k, v]) => !skip.has(k) && v !== null && v !== "" && v !== undefined)
+    .map(([k, v]) => `<tr><td>${k.replace(/_/g, " ")}</td><td>${v}</td></tr>`)
+    .join("");
+  const tag = props._is_placeholder ? `<span class="pill">draft</span>` : "";
+  return `<h3>${layerLabel} ${tag}</h3><table>${rows}</table>`;
+}
+
+function pointMarker(cfg, latlng, isPlaceholder) {
+  return L.circleMarker(latlng, {
+    radius: 8,
+    color: cfg.color,
+    weight: 2,
+    fillColor: cfg.color,
+    fillOpacity: 0.85,
+    dashArray: isPlaceholder ? "3,3" : null,
+  });
+}
+
+function loadLayer(cfg) {
+  const gj = DATA[cfg.key] || { features: [] };
+  const layer = L.geoJSON(gj, {
+    style: f => makeStyle(cfg, f.properties._is_placeholder),
+    pointToLayer: (f, latlng) => pointMarker(cfg, latlng, f.properties._is_placeholder),
+    onEachFeature: (f, l) => l.bindPopup(popupHtml(cfg.label, f.properties)),
+  });
+  layerGroups[cfg.key] = layer;
+  featureCounts[cfg.key] = gj.features.length;
+  if (gj._is_placeholder_layer) anyPlaceholder = true;
+  if (gj.features.length > 0) layer.addTo(map);
+}
+
+function buildLayerToggle() {
+  const list = document.getElementById("layer-list");
+  list.innerHTML = "";
+  LAYERS.forEach(cfg => {
+    const row = document.createElement("label");
+    row.className = "layer-row";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = featureCounts[cfg.key] > 0;
+    cb.disabled = featureCounts[cfg.key] === 0;
+    cb.onchange = () => {
+      const grp = layerGroups[cfg.key];
+      if (!grp) return;
+      cb.checked ? grp.addTo(map) : grp.removeFrom(map);
+    };
+    const sw = document.createElement("span");
+    sw.className = "layer-swatch";
+    sw.style.background = cfg.color;
+    if (cfg.geom === "line") {
+      sw.style.background = "transparent";
+      sw.style.border = `2px solid ${cfg.color}`;
+      sw.style.height = "0px";
+      sw.style.marginTop = "6px";
+    }
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = cfg.label;
+    if (featureCounts[cfg.key] === 0) name.style.opacity = 0.4;
+    const count = document.createElement("span");
+    count.className = "count";
+    count.textContent = featureCounts[cfg.key];
+    row.appendChild(cb);
+    row.appendChild(sw);
+    row.appendChild(name);
+    row.appendChild(count);
+    list.appendChild(row);
+  });
+  if (anyPlaceholder) document.getElementById("placeholder-banner").style.display = "block";
+}
+
+function fitToData() {
+  const bounds = L.latLngBounds([]);
+  Object.values(layerGroups).forEach(g => {
+    try {
+      const b = g.getBounds();
+      if (b.isValid()) bounds.extend(b);
+    } catch(e) {}
+  });
+  if (bounds.isValid()) {
+    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+    // Restrict panning to a 5x area around the data so user can't get lost
+    const padded = bounds.pad(2.0);
+    map.setMaxBounds(padded);
+  }
+}
+
+// Init
+LAYERS.forEach(loadLayer);
+buildLayerToggle();
+fitToData();
+document.getElementById("last-sync").textContent = new Date().toLocaleDateString();
+</script>
+</body>
+</html>
